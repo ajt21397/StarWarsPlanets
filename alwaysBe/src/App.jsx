@@ -4,7 +4,7 @@ import './App.css';
 import Header from './Header';
 import PreviewList from './PreviewList';
 
-const planetsPerPage = 4; // Change this value to set the number of planets per page
+const planetsPerPage = 10; // Change this value to set the number of planets per page
 
 function App() {
   const [data, setData] = useState([]);
@@ -12,21 +12,20 @@ function App() {
   const [featuredPlanet, setFeaturedPlanet] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const [totalPlanets, setTotalPlanets] = useState(0);
 
   useEffect(() => {
-    // Function to fetch data from the API based on the search term
-    const fetchData = async () => {
+    fetchData(1);
+  }, [searchTerm]);
+  // Fetch data from the API for a specific page
+  const fetchData = async (page) => {
       setLoading(true);
-      let apiUrl = 'https://swapi.dev/api/planets/';
-      if (searchTerm) {
-        apiUrl += `?search=${searchTerm}`;
-      }
-
       try {
-        const response = await fetch(apiUrl);
+        const response = await fetch(`https://swapi.dev/api/planets/?page=${page}`);
         const data = await response.json();
-        // Assuming the API returns an array of objects, set the fetched data in the state
-        setData(data.results);
+        // Assuming the API returns an array of objects, append the fetched data to the existing data
+        setData((prevData) => [...prevData, ...data.results]);
+        setTotalPlanets(data.count); // Set the total number of planets available from the API
         setLoading(false); // Set loading to false once data is fetched
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -34,8 +33,7 @@ function App() {
       }
     };
 
-    fetchData();
-  }, [searchTerm]);
+   
 
   const [newPlanetData, setNewPlanetData] = useState({
     name: '',
@@ -47,6 +45,7 @@ function App() {
   });
 
 
+
     // Event handler for handling form input change
     const handleInputChange = event => {
       const { name, value } = event.target;
@@ -56,21 +55,40 @@ function App() {
       }));
     };
   
-    // Event handler for adding a new planet
-    const handleAddPlanet = event => {
-      event.preventDefault();
-      // Assuming the API returns an array of objects, append the new planet to the current data
-      setData(prevData => [...prevData, newPlanetData]);
-      // Clear the form data after adding the new planet
-      setNewPlanetData({
-        name: '',
-        climate: '',
-        population: '',
-        terrain:'',
-        gravity:'',
-        // Add more fields here as needed
-      });
-    };
+   // Event handler for adding a new planet
+const handleAddPlanet = event => {
+  event.preventDefault();
+
+  // Create a new planet object with the data from newPlanetData
+  const newPlanet = {
+    name: newPlanetData.name,
+    climate: newPlanetData.climate,
+    population: newPlanetData.population,
+    terrain: newPlanetData.terrain,
+    gravity: newPlanetData.gravity,
+    // Add more fields here as needed
+  };
+
+  // Assuming the API returns an object with a "results" property containing an array of planets
+  // Update the data by adding the new planet to the end of the array
+  setData(prevData => {
+    const updatedData = [...prevData];
+    updatedData.push(newPlanet);
+    return updatedData;
+  });
+
+  // Clear the form data after adding the new planet
+  setNewPlanetData({
+    name: '',
+    climate: '',
+    population: '',
+    terrain: '',
+    gravity: '',
+    // Add more fields here as needed
+  });
+};
+
+
 
 
   // Event handler for when a planet is clicked in the PreviewList
@@ -94,36 +112,35 @@ function App() {
 
   // Event handler for navigating to the next page
   const handleNextPage = () => {
-    setCurrentPage(prevPage => prevPage + 1);
+    const nextPage = currentPage + 1;
+    // Check if the next page is within the total number of pages
+    if (nextPage <= Math.ceil(totalPlanets / planetsPerPage)) {
+      setCurrentPage(nextPage);
+      fetchData(nextPage);
+    }
   };
 
   // Event handler for navigating to the previous page
   const handlePrevPage = () => {
-    setCurrentPage(prevPage => prevPage - 1);
+    const prevPage = currentPage - 1;
+    // Check if the previous page is within the valid page range
+    if (prevPage >= 1) {
+      setCurrentPage(prevPage);
+      fetchData(prevPage);
+    }
   };
 
   // Event handler for resetting the entire page to its initial state
-  const handleResetAll = () => {
-    setSearchTerm('');
-    setFeaturedPlanet(null);
-    fetchData(); // Fetch the original preview list again from the API
-  };
+const handleResetAll = () => {
+  setSearchTerm('');
+  setFeaturedPlanet(null);
+  setCurrentPage(1); // Reset the currentPage state to 1
+  fetchData(1); // Fetch the original preview list again from the API for the first page
+};
+
   
 
-  // Fetch data from the API
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch('https://swapi.dev/api/planets/');
-      const data = await response.json();
-      // Assuming the API returns an array of objects, set the fetched data in the state
-      setData(data.results);
-      setLoading(false); // Set loading to false once data is fetched
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      setLoading(false); // Set loading to false even if there's an error
-    }
-  };
+  
   
 
   // Calculate the range of planets to display based on the current page
